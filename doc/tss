@@ -1,0 +1,68 @@
+/* Written by liu yuan
+ * liuyuan8@mail.ustc.edu.cn
+ */
+
+X86 Task Status Segment
+
+It specifies the segments that makes up the task execution space and provides a storage place for task _state_ infomation.
+
+OS has to provide a structure describing it and tells CPU where it is in _memory_.
+
+// Task state segment layout in memory
+typedef unsigned int uint;
+typedef unsigned short ushort;
+struct tss {
+	  uint link;
+	  uint esp0;
+	  ushort ss0;
+	  ushort padding1;
+	  uint *esp1;
+	  ushort ss1;
+	  ushort padding2;
+	  uint *esp2;
+	  ushort ss2;
+	  ushort padding3;
+	  void *cr3;
+	  uint *eip;
+	  uint eflags;
+	  uint eax;
+	  uint ecx;
+	  uint edx;
+	  uint ebx;
+	  uint *esp;
+	  uint *ebp;
+	  uint esi;
+	  uint edi;
+	  ushort es;
+	  ushort padding4;
+	  ushort cs;
+	  ushort padding5;
+	  ushort ss;
+	  ushort padding6;
+	  ushort ds;
+	  ushort padding7;
+	  ushort fs;
+	  ushort padding8;
+	  ushort gs;
+	  ushort padding9;
+	  ushort ldt;
+	  ushort padding10;
+	  ushort t;
+	  ushort iomb;
+};
+
+Intel devises TSS to allow for hardware-level multitasking and even simple system must define at least one task.WHY?
+	1 TSS tells CPU where the stacks of all levels are. e.g, when app traps into kernel space: ring3 -> ring 0 ,esp <- esp0, vice versa.
+
+	  for a traditional Unix system, it often means kernel-stack / process. So it has to set up esp0 every time when app asks the kernel to forks a child(new process).
+ 
+	2 TSS tells CPU where your base kernel page directory is [For traditional Unix,it is Fixed once set]
+
+	3 IO port permissions. This is fine-grained IO port control, contrast to IOPL field in Eflags register, a corse-grained one. OS can make use of these tow utilities to grant apps the IO port accesses in userland. e.g, a disk driver.
+
+NOTE:
+TSS is per CPU thing. In other words, at least one TSS for each CPU.
+
+TSS is a system segment. This means you have to clear _s_(segment type) field in the GDT's TSS entry.
+
+TR holds a selector that points to the TSS descriptor in GDT table. This indirection provide protection/checking in a hardware level as CPU does for other segments.Segmentation provides *interrupts/protection* for OS,So you _can't_ disable it even when you just make use of paging.
