@@ -4,7 +4,7 @@
 # error "This is a JOS kernel header; user programs should not #include it"
 #endif
 
-#define BGA
+//#define BGA
 
 enum font {
 	font_asc_width = 8,
@@ -22,7 +22,7 @@ extern uint8_t ASC[font_asc_num][font_asc_height];
 extern uint16_t CHS[font_chs_num][font_chs_height];
 
 #define BGA_LFB_PA 0xE0000000
-#define BGA_LFB_VA 0xFEE00000
+#define BGA_LFB_VA 0xFEF00000
 
 uintptr_t screen_base;	/* This is _virtual_ address address */
 
@@ -32,7 +32,7 @@ enum screen {
 	screen_col = screen_width / font_asc_width,
 	screen_row = screen_height / font_asc_height,
 	screen_size = screen_row * screen_col,
-	screen_bpp = 4,		/* Bype Per Pixel */
+	screen_bpp = 4,		/* Byte Per Pixel */
 };
 
 #define BGA_LFB_SIZE (screen_width * screen_height * screen_bpp)

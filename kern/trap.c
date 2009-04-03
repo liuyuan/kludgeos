@@ -13,8 +13,7 @@
 #include <kern/picirq.h>
 #include <kern/time.h>
 #include <kern/dev/e100.h>
-
-static struct Taskstate ts;
+#include <kern/mp.h>
 
 /* Interrupt descriptor table.  (Must be built at run time because
  * shifted function addresses can't be represented in relocation records.)
@@ -68,29 +67,51 @@ idt_init(void)
 	int i;
 	// LAB 3: Your code here.
 	/* All are interrupt gate because our kernel can't be interrupted */
-	for (i = 0; i < 49; i++)
-		SETGATE(idt[i], 0, GD_KT, vectors[i], 0);
-	SETGATE(idt[T_BRKPT], 0, GD_KT, vectors[T_BRKPT], 3); /* Reset INT3 privilege */
-	SETGATE(idt[T_SYSCALL], 0, GD_KT, vectors[T_SYSCALL], 3); /* SYSCALL */
-	
-	
-	
-	// Setup a TSS so that we get the right stack
-	// when we trap to the kernel.
-	ts.ts_esp0 = KSTACKTOP;
-	ts.ts_ss0 = GD_KD;
+	if (cpu() == mp_bcpu()) {
+		for (i = 0; i < 49; i++)
+			SETGATE(idt[i], 0, GD_KT, vectors[i], 0);
+		SETGATE(idt[T_BRKPT], 0, GD_KT, vectors[T_BRKPT], 3); /* Reset INT3 privilege */
+		SETGATE(idt[T_SYSCALL], 0, GD_KT, vectors[T_SYSCALL], 3); /* SYSCALL */
+		// Setup a TSS so that we get the right stack
+		// when we trap to the kernel.
+		cpus[cpu()].ts.ts_esp0 = KSTACKTOP;
+		cpus[cpu()].ts.ts_ss0 = GD_KD;
 
+		gdt[GD_TSS >> 3] = SEG16(STS_T32A, (uint32_t) (&cpus[cpu()].ts),
+					 sizeof(struct Taskstate), 0);
+		gdt[GD_TSS >> 3].sd_s = 0;
+		} else {
+		/* CPUs share the same address space. So to avoid kstack overflow the layoutt is below:
+		 *  
+		 * +----------+       <---- KSTACKTOP
+		 * | KSTACK   | CPU 0
+		 * +----------+
+		 * | Invalid  |
+		 * +----------+
+		 * | KSTACK   | CPU 1
+		 * +----------+
+		 * | Invalid  |
+		 * +----------+
+		 * |	      | ....
+		 * |	      |
+		 */
+		cpus[cpu()].ts.ts_esp0 = KSTACKTOP - KSTKSIZE * cpu()*2;
+		cpus[cpu()].ts.ts_ss0 = GD_KD;
+
+		cpus[cpu()].gdt[5] = SEG16(STS_T32A, (uint32_t) (&cpus[cpu()].ts),
+						     sizeof(struct Taskstate), 0);
+		cpus[cpu()].gdt[5].sd_s = 0;
+		//asm volatile ("jmp .");
+	}
 	// Initialize the TSS field of the gdt.
-	gdt[GD_TSS >> 3] = SEG16(STS_T32A, (uint32_t) (&ts),
-					sizeof(struct Taskstate), 0);
-	gdt[GD_TSS >> 3].sd_s = 0;
+	
 
 	// Load the TSS
 	ltr(GD_TSS);
-
 	// Load the IDT
 	asm volatile("lidt idt_pd");
-}
+	cprintf("CPU %x: idt_init() success\n",cpu());
+}	
 
 void
 print_trapframe(struct Trapframe *tf)
