@@ -13,6 +13,9 @@
 #include <kern/mp.h>
 #include <kern/picirq.h>
 
+
+enum {trace_irq_enable = 1};
+
 #define IOAPIC  0xFEC00000   // Default physical address of IO APIC
 
 #define REG_ID     0x00  // Register index: ID
@@ -56,16 +59,14 @@ void
 ioapic_init(void)
 {
 	int i, id, maxintr;
-	physaddr_t pa;
 
 	if(!ismp)
 		return;
-	/* Processors share APIC I/O units (0xFEC00000 - 0xFECFFFFF) */
-	for (pa = IOAPIC; pa < 0xFED00000; pa +=PGSIZE) {
-		pte_t *pte;
-		pte = pgdir_walk(boot_pgdir, (void *)IOAPIC, 1);
-		*pte = IOAPIC | PTE_W | PTE_P;
-	}
+	
+	pte_t *pte;
+	pte = pgdir_walk(boot_pgdir, (void *)IOAPIC, 1);
+	*pte = IOAPIC | PTE_W | PTE_P | PTE_PCD; /* Strong Uncacheable */
+	
 	ioapic = (volatile struct ioapic*)IOAPIC;
 	maxintr = (ioapic_read(REG_VER) >> 16) & 0xFF;
 	id = ioapic_read(REG_ID) >> 24;
@@ -78,7 +79,7 @@ ioapic_init(void)
 		ioapic_write(REG_TABLE+2*i, INT_DISABLED | (IRQ_OFFSET + i));
 		ioapic_write(REG_TABLE+2*i+1, 0);
 	}
-	cprintf("ioapic_init success\n");
+	//cprintf("CPU %x: ioapic_init() success\n", cpu());
 }
 
 void
@@ -87,9 +88,9 @@ ioapic_enable(int irq, int cpunum)
 	if(!ismp)
 		return;
 
-	// Mark interrupt edge-triggered, active high,
-	// enabled, and routed to the given cpunum,
-	// which happens to be that cpu's APIC ID.
+	if (trace_irq_enable)
+		cprintf("CPU %x <-- irq %u enabled (IOAPIC)\n", cpunum, irq);
+
 	ioapic_write(REG_TABLE+2*irq, IRQ_OFFSET + irq);
 	ioapic_write(REG_TABLE+2*irq+1, cpunum << 24);
 }

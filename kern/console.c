@@ -5,10 +5,12 @@
 #include <inc/kbdreg.h>
 #include <inc/string.h>
 #include <inc/assert.h>
+#include <inc/trap.h>
 
 #include <kern/console.h>
 #include <kern/picirq.h>
 #include <kern/dev/bga.h>
+#include <kern/mp.h>
 
 void cons_intr(int (*proc)(void));
 
@@ -360,7 +362,7 @@ kbd_init(void)
 {
 	// Drain the kbd buffer so that Bochs generates interrupts.
 	kbd_intr();
-	irq_setmask_8259A(irq_mask_8259A & ~(1<<1));
+	irq_setmask_8259A(irq_mask_8259A & ~(1<<IRQ_KBD));
 }
 
 

@@ -5,6 +5,8 @@
 #include <inc/types.h>
 #include <inc/queue.h>
 #include <inc/mmu.h>
+#include <inc/spinlock.h>
+#include <inc/atomic.h>
 #endif /* not __ASSEMBLER__ */
 
 /*
@@ -173,8 +175,8 @@ struct Page {
 	// to this page, for pages allocated using page_alloc.
 	// Pages allocated at boot time using pmap.c's
 	// boot_alloc do not have valid reference count fields.
-
-	uint16_t pp_ref;
+	//struct Spinlock pp_lock;
+	atomic_t pp_ref;	
 };
 
 #endif /* !__ASSEMBLER__ */

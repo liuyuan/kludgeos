@@ -1,6 +1,7 @@
 #include <inc/mmu.h>
 #include <inc/x86.h>
 #include <inc/assert.h>
+#include <inc/spinlock.h>
 
 #include <kern/pmap.h>
 #include <kern/trap.h>
@@ -65,10 +66,9 @@ idt_init(void)
 	extern struct Segdesc gdt[];
 	extern uintptr_t vectors[];
 	int i;
-	// LAB 3: Your code here.
 	/* All are interrupt gate because our kernel can't be interrupted */
 	if (cpu() == mp_bcpu()) {
-		for (i = 0; i < 49; i++)
+		for (i = 0; i < 52; i++)
 			SETGATE(idt[i], 0, GD_KT, vectors[i], 0);
 		SETGATE(idt[T_BRKPT], 0, GD_KT, vectors[T_BRKPT], 3); /* Reset INT3 privilege */
 		SETGATE(idt[T_SYSCALL], 0, GD_KT, vectors[T_SYSCALL], 3); /* SYSCALL */
@@ -84,9 +84,9 @@ idt_init(void)
 		/* CPUs share the same address space. So to avoid kstack overflow the layoutt is below:
 		 *  
 		 * +----------+       <---- KSTACKTOP
-		 * | KSTACK   | CPU 0
+		 * | KSTACK   | CPU 0 (KSTKSIZE)
 		 * +----------+
-		 * | Invalid  |
+		 * | Invalid  |	      (PGSIZE)
 		 * +----------+
 		 * | KSTACK   | CPU 1
 		 * +----------+
@@ -95,22 +95,18 @@ idt_init(void)
 		 * |	      | ....
 		 * |	      |
 		 */
-		cpus[cpu()].ts.ts_esp0 = KSTACKTOP - KSTKSIZE * cpu()*2;
+		cpus[cpu()].ts.ts_esp0 = KSTACKTOP - (KSTKSIZE + PGSIZE) * cpu();
 		cpus[cpu()].ts.ts_ss0 = GD_KD;
 
 		cpus[cpu()].gdt[5] = SEG16(STS_T32A, (uint32_t) (&cpus[cpu()].ts),
 						     sizeof(struct Taskstate), 0);
 		cpus[cpu()].gdt[5].sd_s = 0;
-		//asm volatile ("jmp .");
 	}
-	// Initialize the TSS field of the gdt.
-	
-
-	// Load the TSS
 	ltr(GD_TSS);
-	// Load the IDT
 	asm volatile("lidt idt_pd");
-	cprintf("CPU %x: idt_init() success\n",cpu());
+	cprintf("CPU %x: Kernel stack: %p ~ %p # %p ~ %p\n",cpu(), 
+		cpus[cpu()].ts.ts_esp0, cpus[cpu()].ts.ts_esp0 - KSTKSIZE,
+		vpt[PPN(cpus[cpu()].ts.ts_esp0) - 1], vpt[PPN(cpus[cpu()].ts.ts_esp0 - KSTKSIZE + 1)]);
 }	
 
 void
@@ -145,52 +141,74 @@ print_regs(struct PushRegs *regs)
 static void
 trap_dispatch(struct Trapframe *tf)
 {
-	// Handle processor exceptions.
-	// LAB 3: Your code here.
+	if (tf->tf_trapno == T_NMI) {
+		//panic("NOT IMPLEMENTED");
+	}
+
+	if (tf->tf_trapno == T_TLBFLUSH) {
+		spin_lock(&tlb_lock);
+		assert(tlb_va);
+		tlb_invalidate(curenv->env_pgdir, tlb_va);
+		spin_unlock(&tlb_lock);
+		lapic_eoi();
+		return;
+	}
+
+	if (tf->tf_trapno == T_HALT) {
+		//panic("NOT IMPLEMENTED");
+		lapic_eoi();
+		return;
+	}
+
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_ERROR) {
+		lapic_eoi();
+		return;
+	}
+
 	if (tf->tf_trapno == T_PGFLT) {
 		page_fault_handler(tf);
 		return;
 	}
 
-	/* INT3 */
 	if (tf->tf_trapno == T_BRKPT || tf->tf_trapno == T_DEBUG)
 		while (1) 
 			monitor(tf);
-	/* SYSCALL */
 	if (tf->tf_trapno == T_SYSCALL) {
 		tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, 
 					      tf->tf_regs.reg_ebx,tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
 		return;
 	}
-	// Handle clock interrupts.
-	// LAB 4: Your code here.
-	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER){
-	// Add time tick increment to clock interrupts.
-	// LAB 6: Your code here.
-		time_tick();
-		sched_yield();	/* Never return */
-	}
 
-	// Handle keyboard interrupts.
-	// LAB 7: Your code here.
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER){
+		if (cpu() == mp_bcpu())
+			time_tick();
+		lapic_eoi();
+		assert(curenv->env_status == ENV_RUNNING);
+		spin_lock(&curenv->env_lock);
+		curenv->env_status = ENV_RUNNABLE;
+		spin_unlock(&curenv->env_lock);
+		sched_yield();
+	}
 
 	// Handle spurious interupts
 	// The hardware sometimes raises these because of noise on the
 	// IRQ line or other reasons. We don't care.
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_SPURIOUS) {
 		cprintf("Spurious interrupt on irq 7\n");
-		print_trapframe(tf);
+		//print_trapframe(tf);
+		lapic_eoi();
 		return;
 	}
 	
-	/* Handle Lan controller interrupts */
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_NIC) {
 		e100_intr();
+		lapic_eoi();
 		return;
 	}
 
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_KBD) {
 		kbd_intr();
+		lapic_eoi();
 		return;
 	}
 	// Unexpected trap: The user process or the kernel has a bug.
@@ -208,25 +226,26 @@ trap(struct Trapframe *tf)
 {
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
-		// Copy trap frame (which is currently on the stack)
-		// into 'curenv->env_tf', so that running the environment
-		// will restart at the trap point.
 		assert(curenv);
 		curenv->env_tf = *tf;
 		// The trapframe on the stack should be ignored from here on.
 		tf = &curenv->env_tf;
 	}
 	
-	// Dispatch based on what type of trap occurred
 	trap_dispatch(tf);
 
 	// If we made it to this point, then no other environment was
 	// scheduled, so we should return to the current environment
 	// if doing so makes sense.
-	if (curenv && curenv->env_status == ENV_RUNNABLE)
-		env_run(curenv);
-	else
+	if (curenv && curenv->env_status == ENV_RUNNING) {
+		curenv->env_runs++;
+		env_pop_tf(&curenv->env_tf);
+	} else {
+		spin_lock(&curenv->env_lock);
+		curenv->env_status = ENV_RUNNABLE;
+		spin_unlock(&curenv->env_lock);
 		sched_yield();
+	}
 }
 
 
@@ -236,12 +255,8 @@ page_fault_handler(struct Trapframe *tf)
 	uint32_t fault_va;
 	struct Page *p;
 	struct UTrapframe *utf;
-	// Read processor's CR2 register to find the faulting address
 	fault_va = rcr2();
 
-	// Handle kernel-mode page faults.
-	
-	// LAB 3: Your code here.
 	if (!(tf->tf_cs & 0x3))
 		panic("*bug in kernel*.Faulting at %x, EIP:%x\n", fault_va, tf->tf_eip);
 
@@ -267,13 +282,6 @@ page_fault_handler(struct Trapframe *tf)
 	// If there's no page fault upcall, the environment didn't allocate a
 	// page for its exception stack, or the exception stack overflows,
 	// then destroy the environment that caused the fault.
-	//
-	// Hints:
-	//   user_mem_assert() and env_run() are useful here.
-	//   To change what the user environment runs, modify 'curenv->env_tf'
-	//   (the 'tf' variable points at 'curenv->env_tf').
-	
-	// LAB 4: Your code here.
 	if (curenv->env_pgfault_upcall) {
 		/* Check if exception stack is accessible */
 		user_mem_assert(curenv, (void *)(UXSTACKTOP - 1), 1, 0);
@@ -305,13 +313,15 @@ page_fault_handler(struct Trapframe *tf)
 		/* Change the control flow and switch stack in the user space */
 		tf->tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
 		tf->tf_esp = (uintptr_t)utf;
-		env_run(curenv);
+		assert(curenv->env_status == ENV_RUNNING);
+		curenv->env_runs++;
+		env_pop_tf(&curenv->env_tf);
 	}
 destroy:
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);
-	print_trapframe(tf);
+	//print_trapframe(tf);
 	env_destroy(curenv);
 }
 

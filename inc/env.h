@@ -7,6 +7,7 @@
 #include <inc/queue.h>
 #include <inc/trap.h>
 #include <inc/memlayout.h>
+#include <inc/spinlock.h>
 
 typedef int32_t envid_t;
 
@@ -34,6 +35,7 @@ typedef int32_t envid_t;
 #define ENV_FREE		0
 #define ENV_RUNNABLE		1
 #define ENV_NOT_RUNNABLE	2
+#define ENV_RUNNING		3
 
 struct Env {
 	struct Trapframe env_tf;	// Saved registers
@@ -50,12 +52,14 @@ struct Env {
 	// Exception handling
 	void *env_pgfault_upcall;	// page fault upcall entry point
 
-	// Lab 4 IPC
+
 	bool env_ipc_recving;		// env is blocked receiving
 	void *env_ipc_dstva;		// va at which to map received page
 	uint32_t env_ipc_value;		// data value sent to us 
 	envid_t env_ipc_from;		// envid of the sender	
 	int env_ipc_perm;		// perm of page mapping received
+
+	struct Spinlock env_lock;	// mutual exclusion
 };
 
 #endif // !JOS_INC_ENV_H

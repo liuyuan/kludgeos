@@ -145,7 +145,7 @@ serve_init(uint32_t ipaddr, uint32_t netmask, uint32_t gw)
     start_timer(&t_tcpf, &tcp_fasttmr, "tcp f timer", TCP_FAST_INTERVAL);
     start_timer(&t_tcps, &tcp_slowtmr, "tcp s timer", TCP_SLOW_INTERVAL);
 
-    cprintf("ns: %02x:%02x:%02x:%02x:%02x:%02x" 
+    cprintf("NS: %02x:%02x:%02x:%02x:%02x:%02x" 
 	    " bound to static %d(%d)\n", 
 	    nif.hwaddr[0], nif.hwaddr[1], nif.hwaddr[2],
 	    nif.hwaddr[3], nif.hwaddr[4], nif.hwaddr[5],
@@ -314,7 +314,7 @@ serve(void) {
 	uint32_t whom;
 	int perm;
 	void *va;
-	
+
 	while (1) {
 		perm = 0;
 		va = get_buffer();
@@ -326,11 +326,15 @@ serve(void) {
 
 		// first take care of requests that do not contain an argument page
 		switch (req) {
-		  case NSREQ_TIMER:
+		case NSREQ_TIMER:
 			process_timer(whom);
 			put_buffer(va);
 			continue;
-		  default:
+#define SHELL 1234
+		case SHELL:	/* Makeshift: Avoid shell scratching the Screen */
+			ipc_send(whom, SHELL, 0, 0);
+			continue;
+		default:
 			break;
 		}
 

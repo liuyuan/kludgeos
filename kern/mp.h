@@ -24,7 +24,7 @@ struct Context {
 	int ebp;
 };
 
-#define NCPU 8
+#define NCPU 21
 
 struct Cpu {
 	uint8_t apicid;			// Local APIC ID
@@ -91,24 +91,23 @@ struct Mpioapic {       		// I/O APIC table entry
 #define MPIOINTR  0x03  // One per bus interrupt source
 #define MPLINTR   0x04  // One per system interrupt source
 
-void
-mp_init(void);
-int
-mp_bcpu(void);
-void
-ap_setupvm(int);
+void mp_init(void);
+int mp_bcpu(void);
+void ap_setupvm(int);
+int mp_ipi_broadcast(int, uint32_t);
+int mp_ipi(int, uint32_t);
+void mp_tlbflush(int);
+void mp_halt(int);
 
-void
-lapic_init(int);
-int
-cpu(void);
-void
-lapic_startap(uint8_t, uint32_t);
+void lapic_init(int);
+int cpu(void);
+void lapic_startap(uint8_t, uint32_t);
+void lapic_eoi(void);
+int lapic_broadcast(int, uint32_t);
+int lapic_ipi(uint32_t, uint32_t);
 
-void
-ioapic_init(void);
-void
-ioapic_enable(int, int);
+void ioapic_init(void);
+void ioapic_enable(int, int);
 
 extern struct Cpu cpus[NCPU];
 extern volatile struct ioapic *ioapic;

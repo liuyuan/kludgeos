@@ -217,7 +217,7 @@ bga_init2(void)
 		 * but not as readable, so put up with it :)
 		 */
 		pte = pgdir_walk(boot_pgdir, (void *)(BGA_LFB_VA + i), 1);
-		*pte = (BGA_LFB_PA + i ) | PTE_W | PTE_P; 
+		*pte = (BGA_LFB_PA + i ) | PTE_W | PTE_P | PTE_PCD;
 	}
 	screen_base = BGA_LFB_VA;
 }

@@ -286,10 +286,14 @@ umain(int argc, char **argv)
 	}
 	if (interactive == '?')
 		interactive = iscons(0);
+
+	/* Send handshake to NS: Avoid sh to scratch the screen */
+#define NS 1234
+	ipc_send(envs[2].env_id, NS, 0, 0);
+	assert(ipc_recv(0, 0, 0) == NS);
 	
 	while (1) {
 		char *buf;
-
 		buf = readline(interactive ? "$ " : NULL);
 		if (buf == NULL) {
 			if (debug)

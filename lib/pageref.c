@@ -1,4 +1,5 @@
 #include <inc/lib.h>
+#include <inc/atomic.h>
 
 int
 pageref(void *v)
@@ -10,5 +11,5 @@ pageref(void *v)
 	pte = vpt[VPN(v)];
 	if (!(pte & PTE_P))
 		return 0;
-	return pages[PPN(pte)].pp_ref;
+	return atomic_read(&pages[PPN(pte)].pp_ref);
 }

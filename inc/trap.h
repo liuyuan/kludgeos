@@ -26,7 +26,10 @@
 
 // These are arbitrarily chosen, but with care not to overlap
 // processor defined exceptions or interrupt vectors.
-#define T_SYSCALL   48		// system call
+#define T_SYSCALL	48	// system call
+#define T_TLBFLUSH	49
+#define T_HALT	50
+
 #define T_DEFAULT   500		// catchall
 
 // Hardware IRQ numbers. We receive these as (IRQ_OFFSET+IRQ_WHATEVER)

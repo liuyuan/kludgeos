@@ -1,40 +1,32 @@
 #include <inc/assert.h>
+#include <inc/spinlock.h>
 
 #include <kern/env.h>
 #include <kern/pmap.h>
 #include <kern/monitor.h>
 
-
-// Choose a user environment to run and run it.
+/* Implement simple round-robin scheduling. */
 void
 sched_yield(void)
 {
-	// Implement simple round-robin scheduling.
-	// Search through 'envs' for a runnable environment,
-	// in circular fashion starting after the previously running env,
-	// and switch to the first such environment found.
-	// It's OK to choose the previously running env if no other env
-	// is runnable.
-	// But never choose envs[0], the idle environment,
-	// unless NOTHING else is runnable.
-
-	// LAB 4: Your code here.
-
+	
 	static int pre = 0;	/* Env previously run */
 	int i;
 	/* Get an runnable 'env' to run in circular fashion */
+	spin_lock(&env_table_lock);
 	for (i = 1; i < NENV; i++) {
 		pre = (pre + 1) % NENV ? (pre + 1) % NENV : 1;
-		if (envs[pre].env_status == ENV_RUNNABLE)
+		spin_lock(&envs[pre].env_lock);
+		if (envs[pre].env_status == ENV_RUNNABLE) {
+			spin_unlock(&env_table_lock);
 			env_run(&envs[pre]);
 		}
-	
-	// Run the special idle environment when nothing else is runnable.
-	if (envs[0].env_status == ENV_RUNNABLE)
-		env_run(&envs[0]);
-	else {
-		cprintf("Destroyed all environments - nothing more to do!\n");
-		while (1)
-			monitor(NULL);
+		spin_unlock(&envs[pre].env_lock);
 	}
+	
+	/* Run the special idle environment when nothing else is runnable. */
+	spin_unlock(&env_table_lock);
+	while (envs[0].env_status != ENV_RUNNABLE);// cprintf("...cpu %x...\n", cpu());
+	spin_lock(&envs[0].env_lock);
+	env_run(&envs[0]);
 }

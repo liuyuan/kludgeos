@@ -47,6 +47,9 @@ extern pde_t *boot_pgdir;
 
 extern struct Segdesc gdt[];
 extern struct Pseudodesc gdt_pd;
+extern struct Spinlock tlb_lock;
+extern volatile uint32_t booted;
+extern uintptr_t *tlb_va;
 
 void	i386_vm_init();
 void	i386_detect_memory();

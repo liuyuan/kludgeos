@@ -43,7 +43,7 @@ pic_init(void)
 	//	  can be hardwired).
 	//    a:  1 = Automatic EOI mode
 	//    p:  0 = MCS-80/85 mode, 1 = intel x86 mode
-	outb(IO_PIC1+1, 0x3);
+	outb(IO_PIC1+1, 0x03);
 
 	// Set up slave (8259A-2)
 	outb(IO_PIC2, 0x11);			// ICW1
@@ -76,7 +76,7 @@ irq_setmask_8259A(uint16_t mask)
 		return;
 	outb(IO_PIC1+1, (char)mask);
 	outb(IO_PIC2+1, (char)(mask >> 8));
-	cprintf("enabled interrupts:");
+	cprintf("PIC: enabled interrupts:");
 	for (i = 0; i < 16; i++)
 		if (~mask & (1<<i))
 			cprintf(" %d", i);

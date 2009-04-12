@@ -23,7 +23,7 @@ umain(void)
 		// if we invoke the kernel monitor after each iteration,
 		// because the first invocation of the idle environment
 		// usually means everything else has run to completion.
-		breakpoint();
+		//breakpoint();
 	}
 }
 

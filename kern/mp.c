@@ -1,16 +1,20 @@
 /*
- * This file implement MP initilization ,namely, to get a
- * MP configuration header for kludgeOS
+ * This file implement MP initilization ,namely, to get a MP configuration
+ * header for kludgeOS and export other useful funcs for IPI
  *
- * Referrence: mp.c of xv6 (just a slight modification)
+ * Referrence: xv6
  * 
  * Written by liu yuan -- liuyuan8@mail.ustc.edu.cn
  * Mar 28 2009
+ * Modified Apr 8, 2009
  */
 #include <inc/memlayout.h>
 #include <inc/types.h>
 #include <inc/string.h>
 #include <inc/x86.h>
+#include <inc/error.h>
+#include <inc/trap.h>
+
 #include <kern/mp.h>
 #include <kern/pmap.h>
 
@@ -22,6 +26,30 @@ int ismp;
 int ncpu;
 uint8_t ioapic_id;
 
+/* Send interrupt # to dedicated CPU
+ * success: 0
+ * failure: <0
+ */
+int
+mp_ipi(int c, uint32_t ino)
+{
+    if (c >= ncpu)
+	return -E_INVAL;
+
+    return lapic_ipi(cpus[c].apicid, ino);
+}
+
+/* Broadcast interrupt # to group of CPUs
+ * success: 0
+ * failure: <0
+ */
+int
+mp_ipi_broadcast(int self, uint32_t ino)
+{
+   return lapic_broadcast(self, ino);
+}
+
+/* Get the BSP */
 int
 mp_bcpu(void)
 {
@@ -75,7 +103,7 @@ mp_search(void)
 	return mp_search1((uint8_t*)0xF0000, 0x10000);
 }
 
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 void 
@@ -189,7 +217,7 @@ mp_init(void)
 			panic("mp_init");
 		}
 	}
-	cprintf("mp_init() success! IOAPIC:%x\n", ioapic_id);
+	cprintf("BSP %x: Get IOAPIC_ID(%x)\n", mp_bcpu(), ioapic_id);
 	if(mp->imcrp){
 		// Bochs doesn't support IMCR, so this doesn't run on Bochs.
 		// But it would on real hardware.
@@ -204,6 +232,8 @@ ap_setupvm(int c)
 	uint32_t cr0;
 	pte_t *pte;
 	int i;
+	uintptr_t va;
+	physaddr_t pa;
 	struct Pseudodesc ap_gdt_pd;
 	
 	for (i = 0; i < GD_NSEG - 1; i++)
@@ -222,23 +252,33 @@ ap_setupvm(int c)
 	lcr0(cr0);
 	
 	/* Reload segments */
-	asm volatile("lgdt (%0)" :: "r" (&ap_gdt_pd));
-	asm volatile("movw %%ax,%%gs" :: "a" (GD_UD|3));
-	asm volatile("movw %%ax,%%fs" :: "a" (GD_UD|3));
-	asm volatile("movw %%ax,%%es" :: "a" (GD_KD));
-	asm volatile("movw %%ax,%%ds" :: "a" (GD_KD));
-	asm volatile("movw %%ax,%%ss" :: "a" (GD_KD));
-	asm volatile("ljmp %0,$1f\n 1:\n" :: "i" (GD_KT));  // reload cs
-	asm volatile("lldt %%ax" :: "a" (0));
+	asm volatile(
+		"lgdt	(%0) \n\t" 
+		"movw	%%ax,%%gs \n\t"
+		"movw	%%ax,%%fs \n\t"
+		"movw	%%bx,%%es \n\t"
+		"movw	%%bx,%%ds \n\t"
+		"movw	%%bx,%%ss \n\t"
+		"ljmp	%1,$1f \n\t"
+		"1:"
+		:
+		: "r" (&ap_gdt_pd), "i" (GD_KT), 
+		  "a" (GD_UD|3), "b" (GD_KD)
+		);
 	
 	boot_pgdir[0] = 0;	/* Kill boot_pgdir[0] */
 
 	lcr3(boot_cr3);
 	
 	/* Set up kernel stack used by ts.esp0 */
-	pte = pgdir_walk(boot_pgdir, (void *)(KSTACKTOP - KSTKSIZE * (cpu()*2 + 1)), 1);
-	*pte = ROUNDDOWN(read_esp() & 0xffffff, PGSIZE) | PTE_P | PTE_W;
+	va = KSTACKTOP - (KSTKSIZE + PGSIZE) * c - PGSIZE;
+	pa = ROUNDDOWN(read_esp() & 0xffffff, PGSIZE);
+	for (i = 0; i < KSTKSIZE / PGSIZE; i++) {		
+		pte = pgdir_walk(boot_pgdir, (void *)va, 1);
+		*pte = pa | PTE_P | PTE_W;
+		va -= PGSIZE;
+		pa -= PGSIZE;
+	}
+	//cprintf("CPU %x: ap_setupvm() success\n", cpu());
 	/* Now VM setup, starts the fun :) */
-	//cprintf("CPU %d ESP %x, MAP %x\n", cpu(), read_esp(), *pte);
-	//asm volatile("jmp .");
 }

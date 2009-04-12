@@ -132,7 +132,7 @@ int     nsipc_send(int s, const void *dataptr, int size, unsigned int flags);
 int     nsipc_socket(int domain, int type, int protocol);
 
 // pageref.c
-int	pageref(void *addr);
+int pageref(void *addr);
 
 // spawn.c
 envid_t	spawn(const char *program, const char **argv);

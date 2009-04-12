@@ -32,9 +32,9 @@ KERN_SRCFILES :=	kern/entry.S \
 			kern/dev/pci.c \
 			kern/dev/e100.c \
 			kern/dev/bga.c \
+			kern/dev/ioapic.c \
+			kern/dev/lapic.c \
 			kern/mp.c \
-			kern/ioapic.c \
-			kern/lapic.c \
 			lib/printfmt.c \
 			lib/readline.c \
 			lib/string.c

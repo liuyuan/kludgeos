@@ -5,7 +5,6 @@
 
 #include <inc/x86.h>
 #include <inc/string.h>
-
 #include "fs.h"
 
 
@@ -167,25 +166,15 @@ serve_set_size(envid_t envid, struct Fsreq_set_size *rq)
 	//    File IDs are a lot like environment IDs in the kernel.
 	//    Use openfile_lookup to translate file IDs to struct OpenFile.
 
-	// Every file system IPC call has the same general structure.
-	// Here's how it goes.
 
-	// First, use openfile_lookup to find the relevant open file.
-	// On failure, return the error code to the client with ipc_send.
 	if ((r = openfile_lookup(envid, rq->req_fileid, &o)) < 0)
 		goto out;
 
-	// Second, call the relevant file system function (from fs/fs.c).
-	// On failure, return the error code to the client.
 	if ((r = file_set_size(o->o_file, rq->req_size)) < 0)
 		goto out;
 
-	// Third, update the 'struct Fd' copy of the 'struct File'
-	// as appropriate.
 	o->o_fd->fd_file.file.f_size = rq->req_size;
 
-	// Finally, return to the client!
-	// (We just return r since we know it's 0 at this point.)
 out:
 	ipc_send(envid, r, 0, 0);
 }
@@ -201,12 +190,6 @@ serve_map(envid_t envid, struct Fsreq_map *rq)
 	if (debug)
 		cprintf("serve_map %08x %08x %08x\n", envid, rq->req_fileid, rq->req_offset);
 
-	// Map the requested block in the client's address space
-	// by using ipc_send.
-	// Map read-only unless the file's open mode (o->o_mode) allows writes
-	// (see the O_ flags in inc/lib.h).
-	
-	// LAB 5: Your code here.
 	if ((r = openfile_lookup(envid, rq->req_fileid, &o)) < 0)
 		goto out;
 
@@ -216,7 +199,6 @@ serve_map(envid_t envid, struct Fsreq_map *rq)
 	perm = o->o_mode & (O_WRONLY|O_RDWR) ? PTE_U|PTE_P|PTE_W : PTE_U|PTE_P;
 
 	ipc_send(envid, 0, blk, perm | PTE_SHARE);
-	//assert(!(vpt[VPN(blk)] & PTE_D));
 	return;
 out:
 	ipc_send(envid, r, 0, 0);
@@ -267,9 +249,6 @@ serve_dirty(envid_t envid, struct Fsreq_dirty *rq)
 	if (debug)
 		cprintf("serve_dirty %08x %08x %08x\n", envid, rq->req_fileid, rq->req_offset);
 
-	// Find the file and dirty the file at the requested offset.
-	// Send the return value back using ipc_send.
-	// LAB 5: Your code here.
 	if ((r = openfile_lookup(envid, rq->req_fileid, &o)) < 0)
 		goto out;
 
@@ -292,6 +271,7 @@ serve(void)
 	uint32_t req, whom;
 	int perm;
 	
+	cprintf("FS: File System initialized\n");
 	while (1) {
 		perm = 0;
 		req = ipc_recv((int32_t *) &whom, (void *) REQVA, &perm);
@@ -341,17 +321,13 @@ umain(void)
 {
 	static_assert(sizeof(struct File) == 256);
         binaryname = "fs";
-	cprintf("FS is running\n");
-
 	// Check that we are able to do I/O
-	outw(0x8A00, 0x8A00);
-	cprintf("FS can do I/O\n");
+	//outw(0x8A00, 0x8A00);
+	//cprintf("FS can do I/O\n");
 
 	serve_init();
 	fs_init();
 	//fs_test();
-
 	serve();
-	cprintf("something wrong!\n");
 }
 

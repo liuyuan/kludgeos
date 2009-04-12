@@ -1,4 +1,6 @@
-/* Written by Liu Yuan */
+/* Written by Liu Yuan
+ * Only works well with UP :(
+ */
 #include <inc/lib.h>
 
 void

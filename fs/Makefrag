@@ -28,12 +28,14 @@ USERAPPS :=		$(USERAPPS) \
 			$(OBJDIR)/user/testpipe \
 			$(OBJDIR)/user/testpteshare \
 			$(OBJDIR)/user/testshell \
-			$(OBJDIR)/user/testmalloc
+			$(OBJDIR)/user/testmalloc \
+			$(OBJDIR)/user/testtime
 
 FSIMGTXTFILES :=	$(FSIMGTXTFILES) \
 			fs/lorem \
 			fs/script \
 			fs/out \
+			fs/shaolian \
 			fs/testshell.key \
 			fs/testshell.out \
 			fs/testshell.sh

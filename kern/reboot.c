@@ -3,6 +3,7 @@
  * Reference: wiki.osdev.org
  * 
  * Written by Liu Yuan -- liuyuan8@mail.ustc.edu.cn
+ * TODO: Need to be rewritten for SMP (Apr 7, 2009)
  */
 #include <inc/x86.h>
 #include <inc/assert.h>

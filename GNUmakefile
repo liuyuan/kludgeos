@@ -109,7 +109,7 @@ all:
 	$(OBJDIR)/net/lwip/jos/%.o $(OBJDIR)/net/lwip/jos/arch/%.o \
 	$(OBJDIR)/net/lwip/jos/jif/%.o
 
-KERN_CFLAGS := $(CFLAGS) -DJOS_KERNEL -gstabs
+KERN_CFLAGS := $(CFLAGS) -DJOS_KERNEL -DJOS_SMP -gstabs
 USER_CFLAGS := $(CFLAGS) -DJOS_USER -gstabs
 
 

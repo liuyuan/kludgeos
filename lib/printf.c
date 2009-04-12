@@ -10,7 +10,6 @@
 #include <inc/stdarg.h>
 #include <inc/lib.h>
 
-
 // Collect up to 256 characters into a buffer
 // and perform ONE system call to print all of them,
 // in order to make the lines output to the console atomic
@@ -59,4 +58,3 @@ cprintf(const char *fmt, ...)
 
 	return cnt;
 }
-

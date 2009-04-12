@@ -11,6 +11,8 @@
 #include <inc/string.h>
 #include <kern/pmap.h>
 #include <kern/picirq.h>
+#include <kern/mp.h>
+
 #include "e100.h"
 
 /*****Control/Status Registers******
@@ -409,9 +411,10 @@ e100_init(void)
 
 	cbl_init();
 	rfa_init();
-
+	
 	/* Enable the previously allocated IRQ line */
 	irq_setmask_8259A(irq_mask_8259A & ~(1 << e100.irq_line));
+	ioapic_enable(e100.irq_line, mp_bcpu());//ismp?1:0);
 }
 
 /* This function will be called at PCI walking-thru and store the information

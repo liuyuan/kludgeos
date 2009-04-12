@@ -4,15 +4,15 @@
 #define JOS_KERN_ENV_H
 
 #include <inc/env.h>
+#include <kern/mp.h>
 
 #ifndef JOS_MULTIENV
-// Change this value to 1 once you're allowing multiple environments
-// (for UCLA: Lab 3, Part 3; for MIT: Lab 4).
 #define JOS_MULTIENV 1
 #endif
 
+extern struct Spinlock env_table_lock;
 extern struct Env *envs;		// All environments
-extern struct Env *curenv;	        // Current environment
+#define  curenv (cpus[cpu()].curenv)	// Current environment
 
 LIST_HEAD(Env_list, Env);		// Declares 'struct Env_list'
 

@@ -218,8 +218,8 @@ pci_func_enable(struct pci_func *f)
 		f->reg_base[regnum] = base;
 		f->reg_size[regnum] = size;
 
-		cprintf("  -> reg_base[%d] = %08x\n", regnum, base);
-		cprintf("  -> reg_size[%d] = %08x\n", regnum, size);
+		//cprintf("  -> reg_base[%d] = %08x\n", regnum, base);
+		//cprintf("  -> reg_size[%d] = %08x\n", regnum, size);
 
 		if (size && !base)
 			cprintf("PCI device %02x:%02x.%d (%04x:%04x) may be misconfigured: "
@@ -235,6 +235,6 @@ pci_init(void)
 {
 	static struct pci_bus root_bus;
 	memset(&root_bus, 0, sizeof(root_bus));
-
+	
 	return pci_scan_bus(&root_bus);
 }

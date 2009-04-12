@@ -19,14 +19,12 @@ diskaddr(uint32_t blockno)
 	return (char*) (DISKMAP + blockno * BLKSIZE);
 }
 
-// Is this virtual address mapped?
 bool
 va_is_mapped(void *va)
 {
 	return (vpd[PDX(va)] & PTE_P) && (vpt[VPN(va)] & PTE_P);
 }
 
-// Is this disk block mapped?
 bool
 block_is_mapped(uint32_t blockno)
 {
@@ -34,14 +32,12 @@ block_is_mapped(uint32_t blockno)
 	return va_is_mapped(va) && va != 0;
 }
 
-// Is this virtual address dirty?
 bool
 va_is_dirty(void *va)
 {
 	return (vpt[VPN(va)] & PTE_D) != 0;
 }
 
-// Is this block dirty?
 bool
 block_is_dirty(uint32_t blockno)
 {
@@ -62,8 +58,6 @@ map_block(uint32_t blockno)
 // Returns 0 on success, or a negative error code on error.
 // 
 // If blk != 0, set *blk to the address of the block in memory.
-//
-// Hint: Use diskaddr, map_block, and ide_read.
 static int
 read_block(uint32_t blockno, char **blk)
 {
@@ -99,8 +93,6 @@ done:
 
 // Copy the current contents of the block out to disk.
 // Then clear the PTE_D bit using sys_page_map.
-// Hint: Use ide_write.
-// Hint: Use the PTE_USER constant when calling sys_page_map.
 void
 write_block(uint32_t blockno)
 {
@@ -109,8 +101,6 @@ write_block(uint32_t blockno)
 	if (!block_is_mapped(blockno))
 		panic("write unmapped block %08x", blockno);
 	
-	// Write the disk block and clear PTE_D.
-	// LAB 5: Your code here.
 	addr = diskaddr(blockno);
 
 	if (ide_write(blockno * BLKSECTS, addr, BLKSECTS) < 0)
@@ -176,7 +166,6 @@ free_block(uint32_t blockno)
 int
 alloc_block_num(void)
 {
-	// LAB 5: Your code here.
 	int i, j;
 	/* Try to find a element of bitmap that indicates containing free blocks
 	 * We stride in 8 bits for speedup
@@ -203,14 +192,10 @@ found:
 //
 // Return block number on success
 // -E_NO_DISK if we are out of blocks
-//
-// Hint: Don't forget to free the block you allocated if anything fails
-// Hint: Use alloc_block_num, map_block and free_block
 int
 alloc_block(void)
 {
 
-	// LAB 5: Your code here.
 	int r, bno;
 	if ((bno = r = alloc_block_num()) < 0)
 		return r;
@@ -240,7 +225,7 @@ read_super(void)
 	if (super->s_nblocks > DISKSIZE/BLKSIZE)
 		panic("file system is too large");
 
-	cprintf("superblock is good\n");
+	//cprintf("superblock is good\n");
 }
 
 // Read and validate the file system bitmap.
@@ -264,40 +249,6 @@ read_bitmap(void)
 	assert(!block_is_free(0));
 	assert(!block_is_free(1));
 	assert(bitmap);
-
-	cprintf("read_bitmap is good\n");
-}
-
-// Test that write_block works, by smashing the superblock and reading it back.
-void
-check_write_block(void)
-{
-	super = 0;
-
-	// back up super block
-	read_block(0, 0);
-	memmove(diskaddr(0), diskaddr(1), PGSIZE);
-
-	// smash it 
-	strcpy(diskaddr(1), "OOPS!\n");
-	write_block(1);
-	assert(block_is_mapped(1));
-	assert(!va_is_dirty(diskaddr(1)));
-
-	// clear it out
-	sys_page_unmap(0, diskaddr(1));
-	assert(!block_is_mapped(1));
-
-	// read it back in
-	read_block(1, 0);
-	assert(strcmp(diskaddr(1), "OOPS!\n") == 0);
-
-	// fix it
-	memmove(diskaddr(1), diskaddr(0), PGSIZE);
-	write_block(1);
-	super = (struct Super*)diskaddr(1);
-
-	cprintf("write_block is good\n");
 }
 
 // Initialize the file system
@@ -313,7 +264,6 @@ fs_init(void)
 		ide_set_disk(0);
 	
 	read_super();
-	//check_write_block();
 	read_bitmap();
 }
 
@@ -338,10 +288,6 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 {
 	int r;
 	uint32_t *ptr;		/* Points to the block that holds filebno'th entry */
-	// Hint: Remember that the first 10 indirect entries are unused 
-	// for easier bookkeeping.
-	// Hint: Use read_block for accessing the indirect block
-	// LAB 5: Your code here.
 	switch (filebno) {
 	case 0 ... (NDIRECT - 1):
 		ptr = &f->f_direct[0];
@@ -383,7 +329,6 @@ file_map_block(struct File *f, uint32_t filebno, uint32_t *diskbno, bool alloc)
 {
 	int r;
 	uint32_t *ptr;
-	// LAB 5: Your code here.
 	if ((r = file_block_walk(f, filebno, &ptr, alloc)) < 0)
 		return r;
 	if (*ptr == 0) {
@@ -422,9 +367,7 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
 	int r;
 	uint32_t diskbno;
-	// Read in the block, leaving the pointer in *blk.
-	// Hint: Use file_map_block and read_block.
-	// LAB 5: Your code here.
+
 	if ((r = file_map_block(f, filebno, &diskbno, 1)) < 0)
 		return r;
 
@@ -440,10 +383,6 @@ file_dirty(struct File *f, off_t offset)
 	int r;
 	char *blk;
 	struct File d;
-	// Find the block and either write to dirty it or remap
-	// it with PTE_D set.
-	// Hint: Use file_get_block
-	// LAB 5: Your code here.
 	if ((r = file_get_block(f, offset / BLKSIZE, &blk)) < 0)
 		return r;
 

@@ -287,4 +287,16 @@ xchg(volatile uint32_t *addr, uint32_t newval)
                "cc");
   return result;
 }
+
+static __inline void
+nop_pause(void)
+{
+    __asm __volatile("pause" : : );
+}
+
+static __inline void
+nop(void)
+{
+    __asm __volatile("nop" : : );
+}
 #endif /* !JOS_INC_X86_H */

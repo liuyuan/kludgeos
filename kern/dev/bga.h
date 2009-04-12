@@ -4,7 +4,7 @@
 # error "This is a JOS kernel header; user programs should not #include it"
 #endif
 
-//#define BGA
+#define BGA
 
 enum font {
 	font_asc_width = 8,

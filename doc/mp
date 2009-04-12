@@ -1,0 +1,46 @@
+/* 
+ * Written by Liu yuan, Apr 7 2009
+ * Ref: Intel SD manual VOLUME 3A
+ */
+Main Players: BSP, AP
+	BSP: Bootstrapping Processor
+		It is selected by BIOS. BSP manages the initialization of itself and APs
+			Job: Its own Registers, such as GDTR, IDR, TR, cr[0-4], Kernal Stacks(its own and for APs), IOAPIC, its own LAPIC, sending SIPI to APS, etc.
+
+	AP: Application Processor
+		BIOS designate remaining CPUs as AP.
+			Jobs: Its own Registers, LAPIC etc.
+
+	NOTE:AP starts in *Real Mode*
+
+Interrupt related Players: LAPIC, IOAPIC, PIC(8259A)
+
+	 		+-.-.-.-.-.-.-.-.-+
+	 		|                 |
+			V                 V
+	 +-----+   +-----+   +------+   +---+
+	 | CPU |<->|LAPIC|<->|IOAPIC|<->|PIC|
+	 +-----+   +-----+   +------+   +---+
+
+	 LAPIC: Deliver local/external intrrupts to CPUs.
+		a) Manage local interrtups: *LINT[0:1], the APIC timer*, the performance-monitor counters, the thermal sensors, the interal error detector.
+		b) Manage Inter-Processor Interrupt.
+		NOTE: OS has to conpifgure a timer between PIC and LAPIC. In MP, it is a must to have individual LAPIC timer enabled for MP protocol
+
+	IOAPIC: A relay to external interrupts to LAPIC. It is mainly used to distribute external interrupts to CPUs.
+
+	PIC: Old device to deliver external interrupts to CPU.
+
+	NOTE: Do NOT forget writes to end-of-interrupt(EOI) register to acknowledge interrupt.
+
+Notes on MP:
+
+1 *TLB shootdown*
+	In a multiprocessor system, when one processor changes a page table or page directory entry, the changes must also be propagated to all other processors. This process is commonly know as "TLB shootdown".
+	means:
+		a) memory-based semaphores
+		b) interprocessor interrupts (IPI)
+	Good refference:"Translation Lookaside Buffer Consistency: A Software Approach." by D.L. Black, R.F. Rashid, D.B. Golub, and C.R. Hill.
+
+2 Local APIC registers address space should be designated as *Strong Uncacheable* for correct operation
+
