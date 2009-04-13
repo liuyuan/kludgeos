@@ -3,7 +3,7 @@ This little project is based on the course 6.828(2008) from MIT. The poject init
 
 Dependence:
 gcc, make, binutils (tested on newest version on his box, not sure if it works on very old one)
-qemu
+qemu patched by MIT
 
 *HOWTO*
 $make #Compile the source
@@ -12,11 +12,10 @@ $make clean # Get afresh
 
 **********************
 What did this man do?
-He implemented all the stubs/files of all the labs left out empty and added a vga driver in order to suppot Chinese GB2312-encoded input/output.
+He implemented all the stubs/files of all the labs left out empty and added a vga driver in order to suppot Chinese GB2312-encoded input/output. Now SMP support has been added.
 
 What is he doing now?
-Curently he is working on the user level application , a simplified telnet utility.
-Someone else is working on *SMP* now. (Yes, they are a three people team so they might end up with three different versions of the kernel)
+Dunno. Anything that interests him will take the time from him.
 
 What will he might do later?
 If he gets more time in hand, possibly he would try to work out a C compiler for this little OS. *Time* is really a headache.

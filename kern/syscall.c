@@ -94,7 +94,10 @@ sys_exofork(void)
 	struct Env *e;
 	if (env_alloc(&e, curenv->env_id) < 0)
 		return -E_NO_FREE_ENV;
+	spin_lock(&e->env_lock);
+	assert(e->env_status == ENV_RUNNABLE);
 	e->env_status = ENV_NOT_RUNNABLE;
+	spin_unlock(&e->env_lock);
 	e->env_tf = curenv->env_tf;
 	e->env_tf.tf_regs.reg_eax = 0;		    /* For child */
 	return e->env_id;
