@@ -1,5 +1,7 @@
 /* See COPYRIGHT for copyright information. */
 
+/* Implemented by Liu Yuan */
+
 #include <inc/x86.h>
 #include <inc/mmu.h>
 #include <inc/error.h>
@@ -301,7 +303,6 @@ page_alloc(struct Page **pp_store)
 void
 page_free(struct Page *pp)
 {
-	// Fill this function in
 	spin_lock(&page_table_lock);
 	assert(atomic_read(&pp->pp_ref) == 0);
 	LIST_INSERT_HEAD(&page_free_list, pp, pp_link);
@@ -324,7 +325,6 @@ page_decref(struct Page* pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
-	// Fill this function in
 	struct Page *pg;
 	pte_t *p;
 	
@@ -361,7 +361,6 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 int
 page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm) 
 {
-	// Fill this function in
 	pte_t *p;
 	if (!(p = pgdir_walk(pgdir, va, 1)))
 		return -E_NO_MEM;
@@ -418,7 +417,6 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 void
 page_remove(pde_t *pgdir, void *va)
 {
-	// Fill this function in
 	struct Page *pp;
 	pte_t *pte_store;
 	pp = page_lookup(pgdir, va, &pte_store);
@@ -472,7 +470,6 @@ static uintptr_t user_mem_check_addr;
 int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
-	// LAB 3: Your code here. 
 	uintptr_t b, e;
 	int i;
 	pte_t *p;
